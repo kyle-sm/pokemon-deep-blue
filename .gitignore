@@ -127,3 +127,12 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# login info
+login.json
+
+# stored models
+models/
+
+# logs
+logs/
