@@ -28,7 +28,12 @@ def main():
         sys.exit(2)
     for opt, arg in opts:
         if opt in ("-l", "--loglevel"):
-            logging.basicConfig(level=LOG_LEVEL_DICT[arg])
+            try:
+                logging.basicConfig(level=LOG_LEVEL_DICT[arg])
+            except KeyError as err:
+                print(f'Invalid log level passed to {opt}.')
+                print('Valid arguments are CRITICAL, ERROR, WARNING, INFO, and DEBUG.')
+                sys.exit(2)
     return
 
 
