@@ -6,6 +6,7 @@ import sys
 import getopt
 import logging
 
+import trainer
 
 LOG_LEVEL_DICT = {
     "CRITICAL": logging.CRITICAL,
@@ -43,8 +44,11 @@ def main():
                   '\n-l, --loglevel=:\n\tSet log level (default WARNING)',
                   '\n-h, --help:\n\tDisplay help message')
             sys.exit(2)
+
+    trainer.get_training_data(battle_format)
     return
 
 
 if __name__ == "__main__":
     main()
+
