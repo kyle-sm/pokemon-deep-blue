@@ -136,6 +136,7 @@ models/
 
 # logs
 logs/
+data/
 
 # vim swap file
 .swp
