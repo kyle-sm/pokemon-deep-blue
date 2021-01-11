@@ -5,8 +5,11 @@ to running and training the bot.
 import sys
 import getopt
 import logging
+import websockets
+import asyncio
 
 import trainer
+import battler
 
 LOG_LEVEL_DICT = {
     "CRITICAL": logging.CRITICAL,
@@ -24,7 +27,7 @@ def main():
 
     # Read through flags and set variables accordingly
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "l:f:h", ["loglevel=", "battleformat=", "help"])
+        opts, args = getopt.getopt(sys.argv[1:], "l:f:htb", ["loglevel=", "battleformat=", "help"])
     except getopt.GetoptError as err:
         print(err)
         sys.exit(2)
@@ -44,10 +47,36 @@ def main():
                   '\n-l, --loglevel=:\n\tSet log level (default WARNING)',
                   '\n-h, --help:\n\tDisplay help message')
             sys.exit(2)
+        elif opt == '-t':
+            trainer.get_training_data(battle_format)
+        elif opt == '-b':
+            sock = battler.PSSock()
 
-    trainer.get_training_data(battle_format)
     return
 
+async def test():
+    uri = 'ws://sim.smogon.com:8000/showdown/websocket'
+    async with websockets.connect(uri) as ws:
+        await ws.send('|/join lobby')
+        await ws.send('|/query roomlist')
+        recv = await ws.recv()
+        print(recv)
+        recv = await ws.recv()
+        print(recv)
+        recv = await ws.recv()
+        print(recv)
+        recv = await ws.recv()
+        print(recv)
+        recv = await ws.recv()
+        print(recv)
+        recv = await ws.recv()
+        print(recv)
+        recv = await ws.recv()
+        print(recv)
+        recv = await ws.recv()
+        print(recv)
+
+asyncio.get_event_loop().run_until_complete(test()) 
 
 if __name__ == "__main__":
     main()
