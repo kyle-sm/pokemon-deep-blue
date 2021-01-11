@@ -51,32 +51,10 @@ def main():
             trainer.get_training_data(battle_format)
         elif opt == '-b':
             sock = battler.PSSock()
+            sock.start()
+            return
 
     return
-
-async def test():
-    uri = 'ws://sim.smogon.com:8000/showdown/websocket'
-    async with websockets.connect(uri) as ws:
-        await ws.send('|/join lobby')
-        await ws.send('|/query roomlist')
-        recv = await ws.recv()
-        print(recv)
-        recv = await ws.recv()
-        print(recv)
-        recv = await ws.recv()
-        print(recv)
-        recv = await ws.recv()
-        print(recv)
-        recv = await ws.recv()
-        print(recv)
-        recv = await ws.recv()
-        print(recv)
-        recv = await ws.recv()
-        print(recv)
-        recv = await ws.recv()
-        print(recv)
-
-asyncio.get_event_loop().run_until_complete(test()) 
 
 if __name__ == "__main__":
     main()
