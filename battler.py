@@ -11,7 +11,6 @@ import json
 import logging
 
 class PSSock():
-    sock = None
 
     def __init__(self, login='login.json', address='sim.smogon.com', port=8000): 
         self.log = logging.getLogger(__name__)
@@ -21,10 +20,6 @@ class PSSock():
             login_info = json.load(json_file)
             self.username = login_info['username']
             self.password = login_info['password']
-
-    def __del__(self):
-        if self.sock:
-            self.sock.close()
 
     def start(self):
         asyncio.run(self.__login_and_listen())
