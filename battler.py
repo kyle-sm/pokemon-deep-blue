@@ -55,24 +55,42 @@ class PSSock():
                     await ws.send(f'|/utm null')
                     await ws.send(f'|/accept {username}')
                     initmsg = await self.__wait_for_msg(ws, 'init')
-                    await self.__battle_routine(ws, initmsg[0].rstrip())
+                    await self.__battle_routine(ws, initmsg[0].rstrip()[1:])
 
     async def __wait_for_msg(self, ws, msgtype='', room=''):
         while True:
             message = await ws.recv()
             message = message.split('|')
-            print(message)
             if (msgtype == '' or message[1] == msgtype): 
-                if (room == '' or message[0] == room):
+                if (room in message[0]):
                     return message
 
     # the current implementation is a placeholder that does random action to
     # test the connection. Once a proper training method is implemented, the AI
     # will make proper, intelligent decisions
     async def __battle_routine(self, ws, roomid):
-        print(roomid)
+        self.log.warn(f'Joining {roomid}...')
+        await ws.send(f'|/join {roomid}')
         while True:
-            await ws.send(f'{roomid}|/choose move {random.randint(1,4)}')
-            await asyncio.sleep(20)
-            await ws.send(f'{roomid}|/switch {random.randint(1,6)}')
+            msg = await self.__wait_for_msg(ws, '', roomid)
+            if msg[1] == 'request' and not msg[2] == '':
+                rjson = json.loads(msg[2])
+                if rjson.get('wait', False):
+                    continue
+                choices = list()
+                if rjson.get('forceSwitch', False):
+                    for index, pkmn in enumerate(rjson['side']['pokemon']):
+                        if not pkmn['active'] and 'fnt' not in pkmn['condition']:
+                            choices.append(index + 1)
+                    choice = choices[random.randint(0, len(choices)-1)]
+                    await ws.send(f'{roomid}|/switch {choice}')
+                else:
+                    for move in rjson['active'][0]['moves']:
+                        if not move['disabled']:
+                            choices.append(move['id'])
+                    choice = choices[random.randint(0, len(choices)-1)]
+                    await ws.send(f'{roomid}|/move {choice}')
+            elif msg[1] == 'win' or msg[1] == 'draw':
+                await ws.send(f'|/leave {roomid}')
+                return
 

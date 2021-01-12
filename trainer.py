@@ -22,7 +22,7 @@ class ReplayListParser(HTMLParser):
 def get_training_data(format: str):
     base_url = 'https://replay.pokemonshowdown.com'
     search_url = '/search/?output=html&rating&format={0}&page={1}'
-    replay_dir = f'./data/{time.time()}'
+    replay_dir = f'./data/{int(time.time())}'
     end_of_replays = False
     page = 1
     
