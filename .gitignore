@@ -143,3 +143,4 @@ data/
 
 # for some reason I keep getting these files that end in ~, what do they even do?
 *~
+.txt
