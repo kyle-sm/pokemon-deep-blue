@@ -25,20 +25,26 @@ def get_training_data(format: str):
     replay_dir = f'./data/{int(time.time())}'
     end_of_replays = False
     page = 1
-    
-    if not os.path.exists(replay_dir):
-        os.makedirs(replay_dir)
+    if not os.path.exists(replay_dir): os.makedirs(replay_dir)
     logger.info(f'Writing logs to {replay_dir}')
 
     while not end_of_replays:
         parser = ReplayListParser()
         logger.info('made request to ' +
                 base_url + search_url.format(format, page))
-        parser.feed(requests.get(base_url + search_url.format(format, page)).text)
-        if len(parser.replay_links) == 0:
-            break;
-        for replay in parser.replay_links:
-            with open(replay_dir + replay + '.log', 'w') as file:
-                file.write(requests.get(base_url + replay + '.log').text)
+        try:
+            parser.feed(requests.get(base_url + search_url.format(format, page)).text)
+        except (MaxRetryError, ConnectionError):
+            logger.error('Skipping ' + base_url 
+                + search_url.format(format,page) + ' due to errors')
+        else:
+            if len(parser.replay_links) == 0:
+                break;
+            for replay in parser.replay_links:
+                with open(replay_dir + replay + '.log', 'w') as file:
+                    try:
+                        file.write(requests.get(f'{base_url}{replay}.log').text)
+                    except (MaxRetryError, ConnectionError):
+                        logger.error(f'Skipping {base_url}{replay}.log due to errors')
         page += 1
 
