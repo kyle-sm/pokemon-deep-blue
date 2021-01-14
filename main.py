@@ -9,7 +9,7 @@ import websockets
 import asyncio
 
 import trainer
-import battler
+import psclient
 
 LOG_LEVEL_DICT = {
     "CRITICAL": logging.CRITICAL,
@@ -20,7 +20,7 @@ LOG_LEVEL_DICT = {
 }
 
 
-def main():
+async def main():
     """The main method. Processes flags to determine how to run the program."""
     mainlogger = logging.getLogger(__name__)
     battle_format = "gen8ou"
@@ -50,12 +50,15 @@ def main():
         elif opt == '-t':
             trainer.get_training_data(battle_format)
         elif opt == '-b':
-            sock = battler.PSSock()
-            sock.start()
+            #sock = battler.PSSock()
+            #sock.start()
+            client = psclient.PSClient()
+            await client.login()
+            await client.play()
             return
 
     return
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
 

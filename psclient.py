@@ -8,8 +8,9 @@ import requests
 import asyncio
 import json
 import logging
+import random
 
-class PSClient()
+class PSClient():
 
     socket = None
     stop = False
@@ -27,8 +28,8 @@ class PSClient()
             self.password = login_info['password']
 
     def __del__(self):
-        if socket:
-            socket.close()
+        if self.socket:
+            asyncio.run(self.socket.close())
 
 
     """
@@ -37,7 +38,7 @@ class PSClient()
     """
     async def login(self):
         self.log.debug(f'Connecting to {self.uri}...')
-        async with websockets.connect(self.uri) as self.socket:
+        self.socket = await websockets.connect(self.uri)
         challstr = await self.__wait_for_msg(type='challstr')
         response = requests.post(
             self.login_uri,
@@ -45,7 +46,7 @@ class PSClient()
                 'act': 'login',
                 'name': self.username,
                 'pass': self.password,
-                'challstr': f"{challstr['content'][0]]}|{challstr['content'][1]}"
+                'challstr': f"{challstr['content'][0]}|{challstr['content'][1]}"
             }
         )
         if response.status_code == 200:
@@ -84,12 +85,16 @@ class PSClient()
     async def play(self):
         self.stop = False
         while not self.stop:
-            msg = await self.__wait_for_message(self)
-            if(msg['room'] in self.battlerooms):
-                self.battlerooms[msg[0]].put(msg)
-            elif(msg['type'] == 'updatechallenges'):
+            msg = await self.__wait_for_msg()
+            if msg['room'] in self.battlerooms:
+                await self.battlerooms[msg['room']].put(msg)
+            elif msg['type'] == 'updatechallenges':
                 asyncio.create_task(self.__accept_challenge(msg))
-            elif(msg['type'] == 'error'):
+            elif msg['type'] == 'init':
+                msg_queue = asyncio.Queue()
+                self.battlerooms[msg['room']] = msg_queue
+                asyncio.create_task(self.__battle_routine(msg_queue, msg['room']))
+            elif msg['type'] == 'error':
                 self.log.warn(f'Websocket sent an error: {msg[2]}')
 
     
@@ -110,7 +115,7 @@ class PSClient()
             message = await self.socket.recv()
             message = message.split('|')
             if kwargs.get('type', '') in message[1] and kwargs.get('room', '') in message[0]:
-                if not message[0] == ''
+                if not message[0] == '':
                     message[0] = message[0].rstrip()[1:]
                 return { 
                         'room' : message[0],
@@ -119,7 +124,7 @@ class PSClient()
                         }
 
     """
-    Sends a message if the socket is open. Can specify room and type if
+    Sends a message if the socket is open. Can specify room if
     necessary.
     """
     async def __send_msg(self, message, **kwargs):
@@ -127,19 +132,15 @@ class PSClient()
             self.log.error('Attempted to send without an open socket')
             raise RuntimeError('Attempted to send without an open socket')
         await self.socket.send(
-          f"{kwargs.get('room','')}|{kwargs.get('room','')}|{message}")
+          f"{kwargs.get('room','')}|{message}")
 
 
-    async def __accept_battle(self, msg):
-        json_data = json.loads(msg[2])
+    async def __accept_challenge(self, msg):
+        json_data = json.loads(msg['content'][0])
         for username, format in json_data['challengesFrom'].items():
             if format in self.teams:
                 await self.__send_msg(f'/utm {self.teams[format]}')
                 await self.__send_msg(f'/accept {username}')
-                initmsg = await self.wait_for_msg(type='init')
-                msg_queue = asyncio.Queue()
-                battlerooms[initmsg['room']] = msg_queue
-                asyncio.create_task(self.__battle_routine(msq_queue, initmsg['room']))
             else:
                 await self.__send_msg(f'/w {username}, I don\'t have a team for that format.')
                 await self.__send_msg(f'/reject {username}')
@@ -149,7 +150,7 @@ class PSClient()
         await self.__send_msg('/join {roomid}')
         while True:
             msg = await msgs.get()
-            if msg['type'] == 'request':
+            if msg['type'] == 'request' and not msg['content'][0] == '':
                 rjson = json.loads(msg['content'][0])
                 if rjson.get('wait', False):
                     continue
