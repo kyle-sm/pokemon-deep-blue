@@ -17,6 +17,7 @@ class PSClient():
 
     def __init__(self, login='login.json', address='sim.smogon.com', port=8000): 
         self.log = logging.getLogger(__name__)
+        print(__name__)
         self.uri = f'ws://{address}:{port}/showdown/websocket'
         self.login_uri = 'https://play.pokemonshowdown.com/action.php'
         self.battlerooms = dict()
@@ -58,7 +59,7 @@ class PSClient():
                 raise RuntimeError(f'Error logging in.\n{response.content}')
             assertion = response_json['assertion']
             await self.socket.send(f'|/trn {username},0,{assertion}')
-            self.log.warn("Login successful.")
+            self.log.debug("Login successful.")
         else:
             raise RuntimeError(f'Error logging in.\n{response.content}')
 
