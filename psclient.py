@@ -13,20 +13,23 @@ import random
 class PSClient():
 
     socket = None
-    stop = False
 
     def __init__(self, login='login.json', address='sim.smogon.com', port=8000): 
         self.log = logging.getLogger(__name__)
-        print(__name__)
+        self.active = False
         self.uri = f'ws://{address}:{port}/showdown/websocket'
         self.login_uri = 'https://play.pokemonshowdown.com/action.php'
         self.battlerooms = dict()
         # if the format doesn't require a team, initialize it to null
         self.teams = {'gen8randombattle' : 'null'}
 
+    """
     def __del__(self):
-        if self.socket:
-            asyncio.run(self.socket.close())
+        if self.active:
+            asyncio.get_event_loop().run_until_complete(self.stop())
+        elif self.socket:
+            asyncio.get_event_loop().run_until_complete(self.socket.close())
+    """
 
 
     """
@@ -86,8 +89,8 @@ class PSClient():
     them to preexisting tasks.
     """
     async def play(self):
-        self.stop = False
-        while not self.stop:
+        self.active = True
+        while self.active:
             msg = await self.__wait_for_msg()
             if msg['room'] in self.battlerooms:
                 await self.battlerooms[msg['room']].put(msg)
@@ -102,8 +105,12 @@ class PSClient():
 
     
     """Tells a currently playing client to stop."""
-    async def stop(self):
-        pass
+    async def close(self):
+        for roomid in self.battlerooms:
+            await self.__send_msg("/forfeit", room=roomid)
+        self.battlerooms.clear()
+        self.active = False
+        await self.socket.close()
 
     """
     Waits for a message from the websocket, optionally of the specified type or
