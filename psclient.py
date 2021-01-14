@@ -62,10 +62,18 @@ class PSClient()
     """
     Loads a team through the websocket. Type can be either json, packed, or
     webexport, with webexport being the format that the Pokemon Showdown webclient
-    exports team as. 
+    exports team as. Returns False if trying to add a team for a format that
+    doesn't need one.
     """
-    async def load_team(self, filename, type):
-        pass
+    async def load_team(self, format, filename, type):
+        if self.teams.get(format, '') == 'null':
+            return False
+        with open(filename, 'r') as team_file:
+            if type == 'packed':
+                self.teams[format] = team_file.read()
+            if type == 'webexport':
+                pass
+
     
     """
     Starts the main loop which receives and acts on messages sent through the
@@ -129,11 +137,35 @@ class PSClient()
                 await self.__send_msg(f'/utm {self.teams[format]}')
                 await self.__send_msg(f'/accept {username}')
                 initmsg = await self.wait_for_msg(type='init')
-                room = initmsg[0].rstrip()[1:]
                 msg_queue = asyncio.Queue()
-                battlerooms[room] = msg_queue
-                asyncio.create_task(self.__battle_routine(msq_queue))
+                battlerooms[initmsg['room']] = msg_queue
+                asyncio.create_task(self.__battle_routine(msq_queue, initmsg['room']))
             else:
                 await self.__send_msg(f'/w {username}, I don\'t have a team for that format.')
                 await self.__send_msg(f'/reject {username}')
                 
+    async def __battle_routine(self, msgs, roomid):
+        self.log.warn(f'Joining {roomid}...')
+        await self.__send_msg('/join {roomid}')
+        while True:
+            msg = await msgs.get()
+            if msg['type'] == 'request':
+                rjson = json.loads(msg['content'][0])
+                if rjson.get('wait', False):
+                    continue
+                choices = list()
+                if rjson.get('forceSwitch', False):
+                    for index, pkmn in enumerate(rjson['side']['pokemon']):
+                        if not pkmn['active'] and 'fnt' not in pkmn['condition']:
+                            choices.append(index + 1)
+                    choice = choices[random.randint(0, len(choices)-1)]
+                    await self.__send_msg(f'/switch {choice}', room=roomid)
+                else:
+                    for move in rjson['active'][0]['moves']:
+                        if not move['disabled']:
+                            choices.append(move['id'])
+                    choice = choices[random.randint(0, len(choices)-1)]
+                    await self.__send_msg(f'/move {choice}', room=roomid)
+            elif msg['type'] == 'win' or msg['type'] == 'draw':
+                await self.__send_msg(f'/leave {roomid}')
+                return
