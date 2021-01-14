@@ -50,8 +50,6 @@ async def main():
         elif opt == '-t':
             trainer.get_training_data(battle_format)
         elif opt == '-b':
-            #sock = battler.PSSock()
-            #sock.start()
             client = psclient.PSClient()
             await client.login()
             await client.play()

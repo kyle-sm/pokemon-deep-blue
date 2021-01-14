@@ -22,10 +22,6 @@ class PSClient():
         self.battlerooms = dict()
         # if the format doesn't require a team, initialize it to null
         self.teams = {'gen8randombattle' : 'null'}
-        with open(login) as json_file:
-            login_info = json.load(json_file)
-            self.username = login_info['username']
-            self.password = login_info['password']
 
     def __del__(self):
         if self.socket:
@@ -36,7 +32,13 @@ class PSClient():
     Opens a websocket connection and attempts to log in using the fields the
     class was initialized with. Must be called before doing anything else.
     """
-    async def login(self):
+    async def login(self, login_file='login.json'):
+        username = ''
+        password = ''
+        with open(login_file) as json_file:
+            login_info = json.load(json_file)
+            username = login_info['username']
+            password = login_info['password']
         self.log.debug(f'Connecting to {self.uri}...')
         self.socket = await websockets.connect(self.uri)
         challstr = await self.__wait_for_msg(type='challstr')
@@ -44,8 +46,8 @@ class PSClient():
             self.login_uri,
             data={
                 'act': 'login',
-                'name': self.username,
-                'pass': self.password,
+                'name': username,
+                'pass': password,
                 'challstr': f"{challstr['content'][0]}|{challstr['content'][1]}"
             }
         )
@@ -55,7 +57,7 @@ class PSClient():
             if not response_json['actionsuccess']:
                 raise RuntimeError(f'Error logging in.\n{response.content}')
             assertion = response_json['assertion']
-            await self.socket.send(f'|/trn {self.username},0,{assertion}')
+            await self.socket.send(f'|/trn {username},0,{assertion}')
             self.log.warn("Login successful.")
         else:
             raise RuntimeError(f'Error logging in.\n{response.content}')
@@ -145,6 +147,7 @@ class PSClient():
                 await self.__send_msg(f'/w {username}, I don\'t have a team for that format.')
                 await self.__send_msg(f'/reject {username}')
                 
+    # This is a temporary battle routine that randomly chooses moves
     async def __battle_routine(self, msgs, roomid):
         self.log.warn(f'Joining {roomid}...')
         await self.__send_msg('/join {roomid}')
@@ -167,6 +170,7 @@ class PSClient():
                             choices.append(move['id'])
                     choice = choices[random.randint(0, len(choices)-1)]
                     await self.__send_msg(f'/move {choice}', room=roomid)
-            elif msg['type'] == 'win' or msg['type'] == 'draw':
-                await self.__send_msg(f'/leave {roomid}')
+            elif 'win' in msg['content'] or 'draw' in msg['content']:
+                await self.__send_msg(f'/leave {roomid}', room=roomid)
+                del self.battlerooms[roomid]
                 return
