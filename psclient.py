@@ -14,19 +14,21 @@ log = logging.getLogger(__name__)
 
 
 class PSClient():
-
-    socket = None
-
     def __init__(self,
                  login='login.json',
                  address='sim.smogon.com',
                  port=8000):
         self.active = False
-        self.uri = f'ws://{address}:{port}/showdown/websocket'
-        self.login_uri = 'https://play.pokemonshowdown.com/action.php'
-        self.battlerooms = dict()
+        self.socket = None
         # if the format doesn't require a team, initialize it to null
         self.teams = {'gen8randombattle': 'null'}
+        self.battlerooms = dict()
+        self.uri = f'ws://{address}:{port}/showdown/websocket'
+        self.login_uri = 'https://play.pokemonshowdown.com/action.php'
+
+    @property
+    def myteams(self):
+        return self.teams
 
     """
     Opens a websocket connection and attempts to log in using the fields the
@@ -66,20 +68,122 @@ class PSClient():
             raise RuntimeError(f'Error logging in.\n{response.content}')
 
     """
-    Loads a team through the websocket. Type can be either json, packed, or
-    webexport, with webexport being the format that the Pokemon Showdown
-    webclient exports team as. Returns False if trying to add a team for a
-    format that doesn't need one.
+    Loads team from a file in the format that showdown exports in. If packed is
+    set to True, it assumes the team is already in the packed format. Returns
+    False if the format specified does not require a team.
     """
 
-    async def load_team(self, format, filename, type):
+    def load_team(self, format, filename, packed=False):
+        # TODO: this is dumb
         if self.teams.get(format, '') == 'null':
             return False
         with open(filename, 'r') as team_file:
-            if type == 'packed':
+            if packed:
                 self.teams[format] = team_file.read()
-            if type == 'webexport':
-                pass
+                return True
+            team = ''
+            mon = {
+                'nick': '',
+                'species': '',
+                'item': '',
+                'ability': '',
+                'moves': list(),
+                'nature': '',
+                'evHP': '',
+                'evAtk': '',
+                'evDef': '',
+                'evSpA': '',
+                'evSpD': '',
+                'evSpe': '',
+                'gender': '',
+                'ivHP': '',
+                'ivAtk': '',
+                'ivDef': '',
+                'ivSpA': '',
+                'ivSpD': '',
+                'ivSpe': '',
+                'shiny': '',
+                'level': ''
+            }
+            for line in team_file:
+                split = line.strip().split(' ')
+                if 'Ability:' in split:
+                    mon['ability'] = self.__pokeparse_helper(line[9:])
+                elif 'Nature' in split:
+                    mon['nature'] = split[0].lower()
+                elif 'EVs:' in split:
+                    for index, word in enumerate(split):
+                        if word.isdigit():
+                            mon['ev' + split[index + 1]] = word
+                elif 'IVs:' in split:
+                    for index, word in enumerate(split):
+                        if word.isdigit():
+                            mon['iv' + split[index + 1]] = word
+                elif 'Shiny:' in split:
+                    mon['shiny'] = 'S'
+                elif 'Level:' in split:
+                    mon['level'] = split[1]
+                elif '-' == split[0]:
+                    mon['moves'].append(self.__pokeparse_helper(line[2:]))
+                elif '@' in split:
+                    if not mon['nick'] == '':
+                        team += ''.join([
+                            f"{mon['nick']}|{mon['species']}|{mon['item']}|",
+                            f"{mon['ability']}|{','.join(mon['moves'])}|",
+                            f"{mon['nature']}|{mon['evHP']},{mon['evAtk']},",
+                            f"{mon['evDef']},{mon['evSpA']},{mon['evSpD']},",
+                            f"{mon['evSpe']}|{mon['gender']}|",
+                            f"{mon['ivHP']},{mon['ivAtk']},{mon['ivDef']},",
+                            f"{mon['ivSpA']},{mon['ivSpD']},{mon['ivSpe']}|",
+                            f"{mon['shiny']}|{mon['level']}|]"
+                        ]).replace('\n', '')
+                        mon = {
+                            'nick': '',
+                            'species': '',
+                            'item': '',
+                            'ability': '',
+                            'moves': list(),
+                            'nature': '',
+                            'evHP': '',
+                            'evAtk': '',
+                            'evDef': '',
+                            'evSpA': '',
+                            'evSpD': '',
+                            'evSpe': '',
+                            'gender': '',
+                            'ivHP': '',
+                            'ivAtk': '',
+                            'ivDef': '',
+                            'ivSpA': '',
+                            'ivSpD': '',
+                            'ivSpe': '',
+                            'shiny': '',
+                            'level': ''
+                        }
+                    item_index = split.index('@')
+                    item = ''.join(split[item_index + 1:])
+                    mon['item'] = self.__pokeparse_helper(item)
+                    for word in split[:item_index]:
+                        if word == '(M)':
+                            mon['gender'] = 'M'
+                        elif word == '(F)':
+                            mon['gender'] = 'F'
+                        elif word[0] == '(':
+                            mon['species'] = word[1:-1]
+                        else:
+                            mon['nick'] = word
+            team += ''.join([
+                f"{mon['nick']}|{mon['species']}|{mon['item']}|",
+                f"{mon['ability']}|{','.join(mon['moves'])}|",
+                f"{mon['nature']}|{mon['evHP']},{mon['evAtk']},",
+                f"{mon['evDef']},{mon['evSpA']},{mon['evSpD']},",
+                f"{mon['evSpe']}|{mon['gender']}|",
+                f"{mon['ivHP']},{mon['ivAtk']},{mon['ivDef']},",
+                f"{mon['ivSpA']},{mon['ivSpD']},{mon['ivSpe']}|",
+                f"{mon['shiny']}|{mon['level']}|"
+            ]).replace('\n', '')
+            self.teams[format] = team.strip()
+            return True
 
     """
     Starts the main loop which receives and acts on messages sent through the
@@ -103,7 +207,7 @@ class PSClient():
                 asyncio.create_task(
                     self.__battle_routine(msg_queue, msg['room']))
             elif msg['type'] == 'error':
-                log.warn(f'Websocket sent an error: {msg[2]}')
+                log.warning(f'Websocket sent an error: {msg[2]}')
 
     """Tells a currently playing client to stop."""
 
@@ -193,3 +297,6 @@ class PSClient():
                 await self.__send_msg(f'/leave {roomid}', room=roomid)
                 del self.battlerooms[roomid]
                 return
+
+    def __pokeparse_helper(self, name):
+        return name.replace(' ', '').replace('-', '').lower()
