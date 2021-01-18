@@ -136,3 +136,11 @@ models/
 
 # logs
 logs/
+data/
+
+# vim swap file
+*.swp
+
+# for some reason I keep getting these files that end in ~, what do they even do?
+*~
+.txt
