@@ -34,50 +34,50 @@ IVs: 30 HP / 30 Def / 30 SpA / 30 Spe
 - Brick Break
 - Close Combat
 
-Blissey (F) @ Assault Vest  
-Ability: Natural Cure 
-Level: 99 
-EVs: 252 HP / 4 Atk / 252 Def  
-Relaxed Nature  
-- Aromatherapy  
-- Avalanche  
-- Blizzard  
-- Body Slam  
+Blissey (F) @ Assault Vest
+Ability: Natural Cure
+Level: 99
+EVs: 252 HP / 4 Atk / 252 Def
+Relaxed Nature
+- Aromatherapy
+- Avalanche
+- Blizzard
+- Body Slam
 
-Buzzwole @ Choice Band  
-Ability: Beast Boost  
-EVs: 252 HP / 252 Atk / 4 SpD  
-Adamant Nature  
-- Body Slam  
-- Brick Break  
-- Bulk Up  
-- Close Combat  
+Buzzwole @ Choice Band
+Ability: Beast Boost
+EVs: 252 HP / 252 Atk / 4 SpD
+Adamant Nature
+- Body Slam
+- Brick Break
+- Bulk Up
+- Close Combat
 
-Cinderace @ Aguav Berry  
-Ability: Libero  
-EVs: 252 Atk / 4 SpD / 252 Spe  
-Adamant Nature  
-- Acrobatics  
-- Agility  
-- Counter  
-- Court Change  
+Cinderace @ Aguav Berry
+Ability: Libero
+EVs: 252 Atk / 4 SpD / 252 Spe
+Adamant Nature
+- Acrobatics
+- Agility
+- Counter
+- Court Change
 
-Clefable @ Aguav Berry  
-Ability: Unaware  
-EVs: 252 HP / 4 Atk / 252 SpD  
-Sassy Nature  
-- Aromatherapy  
-- Dazzling Gleam  
-- Blizzard  
-- Body Slam  
+Clefable @ Aguav Berry
+Ability: Unaware
+EVs: 252 HP / 4 Atk / 252 SpD
+Sassy Nature
+- Aromatherapy
+- Dazzling Gleam
+- Blizzard
+- Body Slam
 
-Corviknight @ Aguav Berry  
-Ability: Mirror Armor  
-EVs: 252 Atk / 4 SpA / 252 Spe  
-Naughty Nature  
-- Agility  
-- Air Slash  
-- Body Press  
+Corviknight @ Aguav Berry
+Ability: Mirror Armor
+EVs: 252 Atk / 4 SpA / 252 Spe
+Naughty Nature
+- Agility
+- Air Slash
+- Body Press
 - Body Slam"""
 
     @classmethod
@@ -171,5 +171,4 @@ Naughty Nature
         m = mock_open(read_data=self.pokepaste)
         with patch('psclient.open', m):
             self.client.load_team('gen8ou', '')
-        self.client.teams['gen8ou'].replace(']',']\n')
         self.assertEqual(self.client.teams['gen8ou'], self.packed_team)

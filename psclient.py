@@ -26,10 +26,6 @@ class PSClient():
         self.uri = f'ws://{address}:{port}/showdown/websocket'
         self.login_uri = 'https://play.pokemonshowdown.com/action.php'
 
-    @property
-    def myteams(self):
-        return self.teams
-
     """
     Opens a websocket connection and attempts to log in using the fields the
     class was initialized with. Must be called before doing anything else.
