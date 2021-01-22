@@ -190,7 +190,7 @@ class PSClient():
 
     async def play(self):
         self.active = True
-        log.debug('Listening on socket connected to {self.uri}')
+        log.debug(f'Listening on socket connected to {self.uri}')
         while self.active:
             msg = await self.__wait_for_msg()
             if msg['room'] in self.battlerooms:
@@ -229,7 +229,7 @@ class PSClient():
             raise RuntimeError('Attempted to listen without an open socket')
         while True:
             message = await self.socket.recv()
-            log.debug('recv: {message}')
+            log.debug(f'recv: {message}')
             message = message.split('|')
             if kwargs.get('type', '') in message[1] and kwargs.get(
                     'room', '') in message[0]:

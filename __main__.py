@@ -22,6 +22,7 @@ LOG_LEVEL_DICT = {
 async def main():
     """The main method. Processes flags to determine how to run the program."""
     battle_format = "gen8ou"
+    mode = None
 
     # Read through flags and set variables accordingly
     try:
@@ -50,13 +51,15 @@ async def main():
         elif opt in ('-g', '--logfile'):
             logging.basicConfig(handlers=[logging.FileHandler(arg)])
         elif opt == '-t':
-            trainer.get_training_data(battle_format)
+            mode = 1
         elif opt == '-b':
-            client = PSClient()
-            await client.login()
-            await client.play()
-            return
-
+            mode = 2
+    if mode == 1:
+        trainer.get_training_data(battle_format)
+    elif mode == 2:
+        client = PSClient()
+        await client.login()
+        await client.play()
     return
 
 
