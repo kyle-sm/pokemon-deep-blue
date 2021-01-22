@@ -2,7 +2,7 @@ import unittest
 import asyncio
 from unittest.mock import Mock, AsyncMock, patch, mock_open
 
-from psclient import PSClient
+from psclient.psclient import PSClient
 
 
 class TestPSClient(unittest.TestCase):
@@ -87,7 +87,7 @@ Naughty Nature
     def setUp(self):
         self.client = PSClient()
 
-    @patch('psclient.open')
+    @patch('psclient.psclient.open')
     @patch('json.load', return_value={'username': 'uname', 'password': 'pass'})
     @patch('websockets.connect',
            new_callable=AsyncMock,
@@ -113,7 +113,7 @@ Naughty Nature
         mock_connect.return_value.send.assert_called_with(
             "|/trn uname,0,assertion")
 
-    @patch('psclient.open')
+    @patch('psclient.psclient.open')
     @patch('json.load', return_value={'username': 'uname', 'password': 'pass'})
     @patch('websockets.connect',
            new_callable=AsyncMock,
@@ -135,7 +135,7 @@ Naughty Nature
                 'challstr': '1|1'
             })
 
-    @patch('psclient.open')
+    @patch('psclient.psclient.open')
     @patch('json.load', return_value={'username': 'uname', 'password': 'pass'})
     @patch('websockets.connect',
            new_callable=AsyncMock,
@@ -163,12 +163,12 @@ Naughty Nature
 
     def test_send_packed_team(self):
         m = mock_open(read_data=self.packed_team)
-        with patch('psclient.open', m):
+        with patch('psclient.psclient.open', m):
             self.client.load_team('gen8ou', '', True)
         self.assertEqual(self.client.teams['gen8ou'], self.packed_team)
 
     def test_send_pokepaste_team(self):
         m = mock_open(read_data=self.pokepaste)
-        with patch('psclient.open', m):
+        with patch('psclient.psclient.open', m):
             self.client.load_team('gen8ou', '')
         self.assertEqual(self.client.teams['gen8ou'], self.packed_team)

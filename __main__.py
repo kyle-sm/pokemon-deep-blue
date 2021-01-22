@@ -7,8 +7,8 @@ import getopt
 import logging
 import asyncio
 
-import trainer
-import psclient
+import agent.trainer as trainer
+from psclient.psclient import PSClient
 
 LOG_LEVEL_DICT = {
     "CRITICAL": logging.CRITICAL,
@@ -52,7 +52,7 @@ async def main():
         elif opt == '-t':
             trainer.get_training_data(battle_format)
         elif opt == '-b':
-            client = psclient.PSClient()
+            client = PSClient()
             await client.login()
             await client.play()
             return
