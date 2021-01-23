@@ -2,53 +2,111 @@
 The trainer module handles everything related to getting
 training data and developing the model
 """
-import requests
 import logging
-import time
-import os
-from html.parser import HTMLParser
+import torch as T
+import torch.nn as nn
+import torch.nn.functional as F
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
 
-class ReplayListParser(HTMLParser):
-    replay_links = list()
+class PolicyNetwork(nn.Module):
+    def __init__(self, lr, input_dims, fc1_dims, fc2_dims, n_actions):
+        super(PolicyNetwork, self).__init__()
+        self.input_dims = input_dims
+        self.lr = lr
+        self.fc1_dims = fc1_dims
+        self.fc2_dims = fc2_dims
+        self.n_actions = n_actions
+        self.fc1 = nn.Linear(*self.input_dims, self.fc1_dims)
+        self.fc2 = nn.Linear(self.fc1_dims, self.fc2_dims)
+        self.fc3 = nn.Linear(self.fc2_dims, self.n_actions)
+        self.optimizer = T.optim.Adam(self.parameters(), lr=lr)
 
-    def handle_starttag(self, starttag, attrs):
-        if starttag == 'a':
-            for name, data in attrs:
-                if name == 'href':
-                    self.replay_links.append(data)
+        self.device = T.device('cuda:0' if T.cuda.is_available() else 'cpu:0')
+        self.to(self.device)
+
+    def forward(self, observation):
+        state = T.Tensor(observation).to(self.device)
+        x = F.relu(self.fc1(state))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+
+        return x
 
 
-def get_training_data(format: str):
-    base_url = 'https://replay.pokemonshowdown.com'
-    search_url = '/search/?output=html&rating&format={0}&page={1}'
-    replay_dir = f'./data/{int(time.time())}'
-    end_of_replays = False
-    page = 1
-    if not os.path.exists(replay_dir): os.makedirs(replay_dir)
-    logger.info(f'Writing logs to {replay_dir}')
+class Agent():
+    def __init__(self, lr, input_dims, gamma=0.99, n_actions=4,
+                 l1_size=256, l2_size=256):
+        self.gamma = gamma
+        self.reward_memory = []
+        self.action_memory = []
+        self.policy = PolicyNetwork(lr, input_dims, l1_size, l2_size,
+                                    n_actions)
 
-    while not end_of_replays:
-        parser = ReplayListParser()
-        logger.info('made request to ' + base_url +
-                    search_url.format(format, page))
-        try:
-            parser.feed(
-                requests.get(base_url + search_url.format(format, page)).text)
-        except (MaxRetryError, ConnectionError):
-            logger.error('Skipping ' + base_url +
-                         search_url.format(format, page) + ' due to errors')
-        else:
-            if len(parser.replay_links) == 0:
-                break
-            for replay in parser.replay_links:
-                with open(replay_dir + replay + '.log', 'w') as file:
-                    try:
-                        file.write(
-                            requests.get(f'{base_url}{replay}.log').text)
-                    except (MaxRetryError, ConnectionError):
-                        logger.error(
-                            f'Skipping {base_url}{replay}.log due to errors')
-        page += 1
+    def choose_action(self, observation):
+        probabilities = F.softmax(self.policy.forward(observation))
+        action_probs = T.distributions.Categorical(probabilities)
+        action = action_probs.sample()
+        log_probs = self.action_memory.append(log_probs)
+        self.action_memory.append(log_probs)
+
+        return action.item()
+
+    def store_rewards(self, reward):
+        self.reward_memory.append(reward)
+
+    def learn(self):
+        self.policy.optimizer.zero_grad()
+        G = np.zeros_like(self.reward_memory, dtype=np.float64)
+        for t in range(len(self.reward_memory)):
+            G_sum = 0
+            discount = 1
+            for k in range(t, len(self.reward_memory)):
+                G_sum += self.reward_memory[k] * discount
+                discount *= self.gamma
+            G[t] = G_sum
+        mean = np.mean(G)
+        std = np.std(G) if np.std(G) > 0 else 1
+        G = (G - mean)/std
+
+        G = T.tensor(G, dtype=T.float).to(self.policy.device)
+
+        loss = 0
+        for g, logprob in zip(G, self.action_memory):
+            loss += -g * logprob
+
+        loss.backward()
+        self.policy.optimizer.step()
+
+        self.action_memory = []
+        self.reward_memory = []
+
+
+class MonteCarloTree():
+    def __init__(self, state, dynamics_function, prediction_function):
+        self.root = self.Node(state)
+
+    def search(self):
+        pass
+
+    class Node():
+        def __init__(self, state, policy, value):
+            self.state = state
+            self.edges = []
+
+        def expand(self):
+            pass
+
+        @property
+        def is_leaf(self):
+            return len(self.edges) == 0
+
+    class Edge():
+        def __init__(self, visits, value, policy, reward, next_node):
+            self.visits = visits
+            self.value = value
+            self.policy = policy
+            self.reward = reward
+            self.next_node = next_node
