@@ -3,10 +3,12 @@ The trainer module handles everything related to getting
 training data and developing the model
 """
 import logging
+from functools import cache
+
+import numpy as np
 import torch as T
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -36,9 +38,26 @@ class PolicyNetwork(nn.Module):
         return x
 
 
+class PredictionNetwork(nn.Module):
+    pass
+
+
+class DynamicsNetwork(nn.Module):
+    pass
+
+
+class RepresentationNetwork(nn.Module):
+    pass
+
+
 class Agent():
-    def __init__(self, lr, input_dims, gamma=0.99, n_actions=4,
-                 l1_size=256, l2_size=256):
+    def __init__(self,
+                 lr,
+                 input_dims,
+                 gamma=0.99,
+                 n_actions=4,
+                 l1_size=256,
+                 l2_size=256):
         self.gamma = gamma
         self.reward_memory = []
         self.action_memory = []
@@ -69,7 +88,7 @@ class Agent():
             G[t] = G_sum
         mean = np.mean(G)
         std = np.std(G) if np.std(G) > 0 else 1
-        G = (G - mean)/std
+        G = (G - mean) / std
 
         G = T.tensor(G, dtype=T.float).to(self.policy.device)
 
@@ -85,8 +104,10 @@ class Agent():
 
 
 class MonteCarloTree():
-    def __init__(self, state, dynamics_function, prediction_function):
-        self.root = self.Node(state)
+    def __init__(self, dynamics_function, prediction_function,
+                 representation_function, action_size, observations):
+        initial_state = representation_function.forward(observations)
+        self.root = self.Node(initial_state)
 
     def search(self):
         pass
@@ -97,7 +118,8 @@ class MonteCarloTree():
             self.edges = []
 
         def expand(self):
-            pass
+            for _ in range(action_size):
+                self.edges.append(Edge(0, 0, self.policy, 0, 0))
 
         @property
         def is_leaf(self):
@@ -110,3 +132,15 @@ class MonteCarloTree():
             self.policy = policy
             self.reward = reward
             self.next_node = next_node
+
+        def __gt__(self, other):
+            return self.UCB() > other.UCB()
+
+        def __lt__(self, other):
+            return self.UCB() < other.UCB()
+
+        @cache
+        def UCB():
+            return value + policy
+            * ((sqrt(visits)/1 + visits))
+            * (1.25 + math.log((visits + 19652 + 1)/19652)
